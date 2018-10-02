@@ -1,0 +1,2 @@
+COCO 2017 training dataset can be dowloaded here:
+http://cocodataset.org/#download
