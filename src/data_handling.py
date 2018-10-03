@@ -14,13 +14,13 @@ class AE_data():
         self.images_list = [folder_path+f for f in listdir(folder_path) if isfile(join(folder_path, f))]        
         self.Nimages = len(self.images_list)
 
-    def get_random_encoder_feed_dict(self, X, batch_size=1, img_resize=None):
+    def get_random_encoder_feed_dict(self, X, batch_size=1, img_resize=480):
         '''
         loads random batch of images from list and return a tensorflow feed dictionary
         inputs:
             X - will be used a key for the dictionary. can use a tf.Placeholder or a string.
             batch_size - integer
-            img_resize - tuple of integers. for example - (360,280)
+            img_resize - integer, number of pixels for the images in the feed dict (square images)
         '''
         idx = random.sample(range(0, self.Nimages), batch_size)
         Xout = np.array(load_image(self.images_list[idx[0]], img_resize))
