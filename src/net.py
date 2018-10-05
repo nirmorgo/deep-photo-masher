@@ -35,9 +35,7 @@ def build_full_conv_autoencoder(self):
     with tf.variable_scope('upsample3'):
         upsample3 = _upsample(upsample2, num_filters=32, filter_size=3, strides=2)
     with tf.variable_scope('smoothing'):
-        out = _conv_layer(upsample3, num_filters=3, filter_size=3, strides=1, relu=False)
-    with tf.variable_scope('output'):
-       self.net_out = tf.nn.tanh(out) * 255./2 + 255./2
+        self.net_out = _conv_layer(upsample3, num_filters=3, filter_size=3, strides=1, relu=False)
 
 
 
