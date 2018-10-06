@@ -1,14 +1,14 @@
 import tensorflow as tf 
 import numpy as np
 
-from src.net import build_full_conv_autoencoder as autoencoder
+from src.net import build_vae_128 as autoencoder
 
 class AE():
     def __init__(self, **kwargs):
         '''
         creates an autoencoder instance
         input params:
-        img_size (optional) - integer. determines the size of the images that will be used in the autoencoder. default - 480.
+        img_size (optional) - integer. determines the size of the images that will be used in the autoencoder. default - 128.
         learning_rate (optional) - determines the initial learning rate that will be set for the training process. default - 0.001
         c_l1 (optional) - weight of L1 loss, default - 1
         c_l2 (optional) - weight of L2 loss, default - 1
@@ -17,7 +17,7 @@ class AE():
         self.params = {}
         if kwargs is not None:
             self.params = kwargs
-        self.img_size = self.params.get('img_size', 480)
+        self.img_size = self.params.get('img_size', 128)
         self.c_l1 = self.params.get('c_l1', 1)
         self.c_l2 = self.params.get('c_l2', 1)
         self.c_tv = self.params.get('c_tv', 1)
