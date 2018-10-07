@@ -76,18 +76,16 @@ def build_vae_128(self):
         with tf.variable_scope('reshape'):
             net = fully_connected(self.z, 2048)
             net = tf.reshape(net, (tf.shape(net)[0], 8, 8, 32))
-        with tf.variable_scope('upsample1'):
+        with tf.variable_scope('deconv1'):
+            net = _upsample(net, num_filters=32, filter_size=3, strides=2)
+        with tf.variable_scope('deconv2'):
             net = _upsample(net, num_filters=32, filter_size=3, strides=2)
         with tf.variable_scope('res_block4'):
             net = _residual_block(net, filter_size=3, filter_num=32)
-        with tf.variable_scope('upsample2'):
-            net = _upsample(net, num_filters=32, filter_size=3, strides=2)
         with tf.variable_scope('res_block5'):
             net = _residual_block(net, filter_size=3, filter_num=32)
-        with tf.variable_scope('upsample3'):
+        with tf.variable_scope('deconv3'):
             net = _upsample(net, num_filters=32, filter_size=3, strides=2)
-        with tf.variable_scope('res_block6'):
-            net = _residual_block(net, filter_size=3, filter_num=32)
         with tf.variable_scope('upsample4'):
             net = _upsample(net, num_filters=32, filter_size=3, strides=2)
         with tf.variable_scope('smoothing'):
@@ -104,6 +102,16 @@ def _conv_inst_norm(net, num_filters, filter_size, strides, relu=True, name='con
 
     return net
 
+def _deconv_inst_norm(net, num_filters, filter_size, strides, relu=True, name='conv2d'):
+    net = conv2d_transpose(net, num_filters, filter_size, 
+                                                    strides, padding='SAME', 
+                                                    activation_fn=None,
+                                                    scope=name)
+    net = _instance_norm(net)
+    if relu:
+        net = tf.nn.relu(net)
+
+    return net
 
 def _residual_block(net, filter_size=3, filter_num=128):
     tmp = _conv_inst_norm(net, filter_num, filter_size, 1, name='conv2d_1')
