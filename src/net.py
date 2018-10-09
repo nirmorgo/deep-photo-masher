@@ -92,51 +92,44 @@ def build_vae_128(self):
             self.net_out = _conv_inst_norm(net, num_filters=3, filter_size=3, strides=1, relu=False)
 
 
-def build_vae_v2(self):
+def build_conv_vae_v2(self):
     '''
     build a variational autoencoder with convolutional layers instance norms.
-    the input image size must be 128 X 128
     '''
-    # encoder
-    with tf.variable_scope('Encoder'):
-        with tf.variable_scope('conv1'):
-            net = _conv_inst_norm(self.X, num_filters=32, filter_size=9, strides=1)
-        with tf.variable_scope('conv2'):
-            net = _conv_inst_norm(net, num_filters=32, filter_size=3, strides=2)
-        with tf.variable_scope('conv3'):
-            net = _conv_inst_norm(net, num_filters=64, filter_size=3, strides=2)  
-        with tf.variable_scope('conv4'):
-            net = _conv_inst_norm(net, num_filters=128, filter_size=3, strides=2)
-        with tf.variable_scope('conv5'):
-            net = _conv_inst_norm(net, num_filters=256, filter_size=3, strides=2)
-        with tf.variable_scope('conv6'):
-            net = _conv_inst_norm(net, num_filters=512, filter_size=3, strides=2)
-        with tf.variable_scope('Flatten'):
-            encoder_out = tf.layers.flatten(net)
-
-    # embedded space
-    with tf.variable_scope('embedded_space'):
-        self.z_mu = fully_connected(encoder_out, 512, activation_fn=None, scope='z_mean')
-        self.z_log_sigma_sq = fully_connected(encoder_out, 512, activation_fn=None, scope='z_sigma') + 1e-6
-        eps = tf.random_normal(shape=tf.shape(self.z_log_sigma_sq), mean=0, stddev=1, dtype=tf.float32)
-        self.z = self.z_mu + tf.sqrt(tf.exp(self.z_log_sigma_sq)) * eps
+        # encoder
+    with tf.variable_scope('conv1'):
+        net = _conv_inst_norm(self.X, num_filters=32, filter_size=9, strides=1)
+    with tf.variable_scope('conv2'):
+        net = _conv_inst_norm(net, num_filters=32, filter_size=3, strides=2)
+    with tf.variable_scope('conv3'):
+        net = _conv_inst_norm(net, num_filters=32, filter_size=3, strides=2)
+    with tf.variable_scope('conv4'):
+        net = _conv_inst_norm(net, num_filters=32, filter_size=3, strides=2)
+    with tf.variable_scope('res_block1'):
+        net = _residual_block(net, filter_size=3, filter_num=32)
+    with tf.variable_scope('res_block2_1'):
+        self.z_mu = _residual_block(net, filter_size=3, filter_num=32)
+    with tf.variable_scope('res_block2_2'):
+        self.z_log_sigma_sq = _residual_block(net, filter_size=3, filter_num=32)
     
-     # decoder
-    with tf.variable_scope('Decoder'):
-        with tf.variable_scope('reshape'):
-            net = fully_connected(self.z, 2048)
-            net = tf.reshape(net, (tf.shape(net)[0], 8, 8, 32))
-        with tf.variable_scope('upsample1'):
-            net = _upsample(net, num_filters=32, filter_size=3, strides=2)
-        with tf.variable_scope('upsample2'):
-            net = _upsample(net, num_filters=32, filter_size=3, strides=2)
-        with tf.variable_scope('upsample3'):
-            net = _upsample(net, num_filters=32, filter_size=3, strides=2)
-        with tf.variable_scope('upsample4'):
-            net = _upsample(net, num_filters=32, filter_size=3, strides=2)
-        with tf.variable_scope('smoothing'):
-            net = _conv_inst_norm(net, num_filters=3, filter_size=3, strides=1, relu=False)
-            self.net_out = tf.nn.sigmoid(net)
+    with tf.variable_scope('embedded_space'):
+        eps = tf.random_normal(shape=tf.shape(self.z_log_sigma_sq), mean=0, stddev=0.1, dtype=tf.float32)
+        self.z = self.z_mu + tf.sqrt(tf.exp(self.z_log_sigma_sq)) * eps
+
+    # decoder
+    with tf.variable_scope('res_block3'):
+        net = _residual_block(self.z, filter_size=3, filter_num=32)
+    with tf.variable_scope('res_block4'):
+        net = _residual_block(net, filter_size=3, filter_num=32)
+    with tf.variable_scope('upsample1'):
+        net = _upsample(net, num_filters=32, filter_size=3, strides=2)
+    with tf.variable_scope('upsample2'):
+        net = _upsample(net, num_filters=32, filter_size=3, strides=2)
+    with tf.variable_scope('upsample3'):
+        net = _upsample(net, num_filters=32, filter_size=3, strides=2)
+    with tf.variable_scope('smoothing'):
+        net = _conv_inst_norm(net, num_filters=3, filter_size=3, strides=1, relu=False)
+        self.net_out = tf.nn.sigmoid(net)
 
 
 

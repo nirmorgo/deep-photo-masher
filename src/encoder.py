@@ -1,7 +1,7 @@
 import tensorflow as tf 
 import numpy as np
 
-from src.net import build_vae_v2 as autoencoder
+from src.net import build_conv_vae_v2 as autoencoder
 
 class AE():
     def __init__(self, **kwargs):
@@ -17,11 +17,11 @@ class AE():
         self.params = {}
         if kwargs is not None:
             self.params = kwargs
-        self.img_size = self.params.get('img_size', 128)
+        self.img_size = self.params.get('img_size', 480)
         self.c_l1 = self.params.get('c_l1', 1)
         self.c_l2 = self.params.get('c_l2', 1)
         self.c_tv = self.params.get('c_tv', 1)
-        self.c_kl = self.params.get('c_tv', 5e-3)
+        self.c_kl = self.params.get('c_tv', 1e-6)
         self.temp_folder = './tmp/'
         self.best_loss = 1e25   # Will be used to monitor the best loss and save it
 
@@ -84,6 +84,7 @@ class AE():
 
         with tf.variable_scope('KL_div_loss'):
             KL_loss = tf.reduce_mean(- 0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq - tf.square(self.z_mu) - tf.exp(self.z_log_sigma_sq),1))
+            tf.summary.scalar('KL_div_loss', KL_loss)
         
         loss += self.c_kl * KL_loss
 
