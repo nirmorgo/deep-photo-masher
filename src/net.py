@@ -113,7 +113,7 @@ def build_conv_vae_v2(self):
         self.z_log_sigma_sq = _residual_block(net, filter_size=3, filter_num=32)
     
     with tf.variable_scope('embedded_space'):
-        eps = tf.random_normal(shape=tf.shape(self.z_log_sigma_sq), mean=0, stddev=0.1, dtype=tf.float32)
+        eps = tf.random_normal(shape=tf.shape(self.z_log_sigma_sq), mean=0, stddev=1, dtype=tf.float32)
         self.z = self.z_mu + tf.sqrt(tf.exp(self.z_log_sigma_sq)) * eps
 
     # decoder

@@ -16,8 +16,8 @@ def train(*args):
     data = AE_data()
     data.load_images_list_from_directory('data/COCO_train2017/')
 
-    autoencoder = AE(c_l1=1e8, c_tv=1e1, c_l2=0)
-    autoencoder.restore_model_from_last_checkpoint()
+    autoencoder = AE(c_l1=1e8, c_tv=1e1, c_kl=1e-7)
+    # autoencoder.restore_model_from_last_checkpoint()
     autoencoder.train(data, batch_size=batch_size, iters=iters, learning_rate=lr)
 
 

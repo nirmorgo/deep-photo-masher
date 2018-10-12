@@ -1,7 +1,7 @@
 import tensorflow as tf 
 import numpy as np
 
-from src.net import build_conv_vae_v2 as autoencoder
+from src.net import build_full_conv_autoencoder as autoencoder
 
 class AE():
     def __init__(self, **kwargs):
@@ -17,7 +17,7 @@ class AE():
         self.params = {}
         if kwargs is not None:
             self.params = kwargs
-        self.img_size = self.params.get('img_size', 480)
+        self.img_size = self.params.get('img_size', 64)
         self.c_l1 = self.params.get('c_l1', 1)
         self.c_l2 = self.params.get('c_l2', 1)
         self.c_tv = self.params.get('c_tv', 1)
@@ -82,11 +82,11 @@ class AE():
         
         loss += self.c_tv * tv_loss
 
-        with tf.variable_scope('KL_div_loss'):
-            KL_loss = tf.reduce_mean(- 0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq - tf.square(self.z_mu) - tf.exp(self.z_log_sigma_sq),1))
-            tf.summary.scalar('KL_div_loss', KL_loss)
+        # with tf.variable_scope('KL_div_loss'):
+        #     KL_loss = tf.reduce_mean(- 0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq - tf.square(self.z_mu) - tf.exp(self.z_log_sigma_sq),1))
+        #     tf.summary.scalar('KL_div_loss', KL_loss)
         
-        loss += self.c_kl * KL_loss
+        # loss += self.c_kl * KL_loss
 
         return loss
     
