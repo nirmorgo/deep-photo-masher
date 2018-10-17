@@ -1,11 +1,16 @@
 from os import listdir
 from os.path import isfile, join
 from src.image_utils import load_image
+import glob
+import pickle
 import numpy as np
 import random
 
 
 class AE_data():
+    '''
+    this data handler is designed to work with folders of unlabaled images
+    '''
     def __init__(self):
         self.Nimages=0
         self.images_list = []
@@ -60,3 +65,27 @@ class AE_data():
             self.idx_counter += batch_size
 
             return {X: Xout}
+
+class CIFAR10_data():
+    def __init__(self):
+        self.Nimages=0
+        self.X = None
+        self.labels = []
+        self.idx_counter = 1e15
+
+    def load_batch(self, path):
+        with open(path, 'rb') as fo:
+            dict = pickle.load(fo, encoding='latin-1')
+        return dict
+    
+    def load_data(self, folder_path):
+        file_names = glob.glob(folder_path+'data*')
+        for file_name in file_names:
+            data_dict = self.load_batch(file_name)
+            images = data_dict["data"].reshape((10000,3,32,32))
+            images = np.rollaxis(images, 1, 4)
+            if self.X is None:
+                self.X = images
+            else:
+                self.X = np.concatenate((self.X, images))
+            self.labels += data_dict["labels"]
