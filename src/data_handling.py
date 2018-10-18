@@ -71,21 +71,53 @@ class CIFAR10_data():
         self.Nimages=0
         self.X = None
         self.labels = []
-        self.idx_counter = 1e15
+        self.encoding = {'airplane':0, 'automobile':1, 'bird':2, 'cat':3, 'deer':4,
+                         'dog':5,'frog':6, 'horse':7, 'ship': 8, 'truck': 9}
+        self.decoding = {0:'airplane', 1:'automobile', 2:'bird', 3:'cat', 4:'deer',
+                         5:'dog',6:'frog', 7:'horse',  8:'ship', 9:'truck'}
+        self.current_train_idx = 1e15
 
+    def restart_epoch(self):
+        self.rand_train_idxs = np.random.permutation(self.Nimages)
+        self.current_train_idx = 0
+    
     def load_batch(self, path):
         with open(path, 'rb') as fo:
             dict = pickle.load(fo, encoding='latin-1')
         return dict
     
-    def load_data(self, folder_path):
+    def load_data(self, folder_path, keep_classes=[0,1,2,3,4,5,6,7,8,9]):
         file_names = glob.glob(folder_path+'data*')
         for file_name in file_names:
             data_dict = self.load_batch(file_name)
             images = data_dict["data"].reshape((10000,3,32,32))
             images = np.rollaxis(images, 1, 4)
+            labels = data_dict["labels"]
+            idxs_to_keep = []
+            for idx, label in enumerate(labels):
+                if label in keep_classes:
+                    self.labels.append(label)
+                    idxs_to_keep.append(idx)
             if self.X is None:
-                self.X = images
+                self.X = images[idxs_to_keep]
             else:
-                self.X = np.concatenate((self.X, images))
-            self.labels += data_dict["labels"]
+                self.X = np.concatenate((self.X, images[idxs_to_keep]))
+        
+        self.Nimages = len(self.X)
+    
+    def get_ae_feed_dict(self, X, batch_size=None):
+        '''
+        gets a feed dictionary out of the data set.
+        inputs: 
+                X: tensorflow place holders with same dimensions as the images
+                batch_size: return a randomly selected batch from dataset
+        output: a feed dictionary for tensorflow session.
+        '''
+        np.random.seed(None)
+        if self.current_train_idx + batch_size > self.Nimages:
+            self.restart_epoch()
+            
+        idxs = self.rand_train_idxs[self.current_train_idx:self.current_train_idx + batch_size]
+        X_batch = self.X[idxs]
+        self.current_train_idx += batch_size
+        return {X: X_batch}
