@@ -1,7 +1,5 @@
 import tensorflow as tf 
-import numpy as np
-
-from src.net import build_full_conv_autoencoder as autoencoder
+from src.net import build_conv_vae_32 as autoencoder
 
 class AE():
     def __init__(self, **kwargs):
@@ -17,7 +15,7 @@ class AE():
         self.params = {}
         if kwargs is not None:
             self.params = kwargs
-        self.img_size = self.params.get('img_size', 64)
+        self.img_size = self.params.get('img_size', 32)
         self.c_l1 = self.params.get('c_l1', 1)
         self.c_l2 = self.params.get('c_l2', 1)
         self.c_tv = self.params.get('c_tv', 1)
@@ -40,6 +38,9 @@ class AE():
 
         with self.sess.as_default():
             tf.global_variables_initializer().run()
+        
+#        inputs = tf.keras.
+#        self.Model = tf.keras.Model(inputs=inputs, outputs=self.net_out)
     
     def loss_func(self):
         img = self.net_out
@@ -56,11 +57,11 @@ class AE():
 
         loss = self.c_l1 * l1_loss
         
-        # with tf.variable_scope('L2_loss'):
-        #     l2_loss = tf.nn.l2_loss(self.X - img) / elem_num
-        #     tf.summary.scalar('L2_loss', l2_loss)
+        with tf.variable_scope('L2_loss'):
+            l2_loss = tf.nn.l2_loss(self.X - img) / elem_num
+            tf.summary.scalar('L2_loss', l2_loss)
         
-        # loss += self.c_l2 * l2_loss
+        loss += self.c_l2 * l2_loss
         
         with tf.variable_scope('TV_loss'):
             def _tensor_size(tensor):
@@ -82,11 +83,11 @@ class AE():
         
         loss += self.c_tv * tv_loss
 
-        # with tf.variable_scope('KL_div_loss'):
-        #     KL_loss = tf.reduce_mean(- 0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq - tf.square(self.z_mu) - tf.exp(self.z_log_sigma_sq),1))
-        #     tf.summary.scalar('KL_div_loss', KL_loss)
+        with tf.variable_scope('KL_div_loss'):
+            KL_loss = tf.reduce_mean(- 0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq - tf.square(self.z_mu) - tf.exp(self.z_log_sigma_sq),1))
+            tf.summary.scalar('KL_div_loss', KL_loss)
         
-        # loss += self.c_kl * KL_loss
+        loss += self.c_kl * KL_loss
 
         return loss
     
@@ -101,7 +102,7 @@ class AE():
         if learning_rate is not None:
             self.sess.run(tf.assign(self.LR, learning_rate))
         for i in range(iters):
-            feed_dict=data.get_random_encoder_feed_dict(X=self.X,  batch_size=batch_size, img_resize=self.img_size, preload=False)
+            feed_dict=data.get_ae_feed_dict(X=self.X,  batch_size=batch_size, img_resize=self.img_size, preload=False)
             train_scalars, _, g_step, current_loss = self.sess.run([self.scalars, self.train_step, self.global_step, self.loss],
                                                         feed_dict=feed_dict)
             self.writer.add_summary(train_scalars, g_step)

@@ -36,7 +36,7 @@ class AE_data():
             self.X.append(X_temp)
         self.X = np.array(self.X)
 
-    def get_random_encoder_feed_dict(self, X, batch_size=1, img_resize=480, preload=False):
+    def get_ae_feed_dict(self, X, batch_size=1, img_resize=480, preload=False):
         '''
         loads random batch of images from list and return a tensorflow feed dictionary
         inputs:
@@ -86,7 +86,7 @@ class CIFAR10_data():
             dict = pickle.load(fo, encoding='latin-1')
         return dict
     
-    def load_data(self, folder_path, keep_classes=[0,1,2,3,4,5,6,7,8,9]):
+    def load_data(self, folder_path, keep_classes=[0,1,2,3,4,5,6,7,8,9], **kwargs):
         file_names = glob.glob(folder_path+'data*')
         for file_name in file_names:
             data_dict = self.load_batch(file_name)
@@ -105,7 +105,7 @@ class CIFAR10_data():
         
         self.Nimages = len(self.X)
     
-    def get_ae_feed_dict(self, X, batch_size=None):
+    def get_ae_feed_dict(self, X, batch_size=None, **kwargs):
         '''
         gets a feed dictionary out of the data set.
         inputs: 

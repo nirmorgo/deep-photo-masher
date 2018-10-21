@@ -92,44 +92,41 @@ def build_vae_128(self):
             self.net_out = _conv_inst_norm(net, num_filters=3, filter_size=3, strides=1, relu=False)
 
 
-def build_conv_vae_v2(self):
+def build_conv_vae_32(self):
     '''
     build a variational autoencoder with convolutional layers instance norms.
     '''
-        # encoder
+    # encoder
     with tf.variable_scope('conv1'):
-        net = _conv_inst_norm(self.X, num_filters=32, filter_size=9, strides=1)
+        net = conv2d(self.X, 64, 9, 1, padding='SAME')
     with tf.variable_scope('conv2'):
-        net = _conv_inst_norm(net, num_filters=32, filter_size=3, strides=2)
+        net = conv2d(net, 64, 3, 2, padding='SAME')
     with tf.variable_scope('conv3'):
-        net = _conv_inst_norm(net, num_filters=32, filter_size=3, strides=2)
+        net = conv2d(net, 64, 3, 2, padding='SAME')
     with tf.variable_scope('conv4'):
-        net = _conv_inst_norm(net, num_filters=32, filter_size=3, strides=2)
-    with tf.variable_scope('res_block1'):
-        net = _residual_block(net, filter_size=3, filter_num=32)
-    with tf.variable_scope('res_block2_1'):
-        self.z_mu = _residual_block(net, filter_size=3, filter_num=32)
-    with tf.variable_scope('res_block2_2'):
-        self.z_log_sigma_sq = _residual_block(net, filter_size=3, filter_num=32)
+        net = conv2d(net, 64, 3, 1, padding='SAME')
+    with tf.variable_scope('conv5_1'):
+        self.z_mu = conv2d(net, 64, 3, 1, padding='SAME')
+    with tf.variable_scope('conv5_2'):
+        self.z_log_sigma_sq = conv2d(net, 64, 3, 1, padding='SAME')
     
+    # embedded space
     with tf.variable_scope('embedded_space'):
         eps = tf.random_normal(shape=tf.shape(self.z_log_sigma_sq), mean=0, stddev=1, dtype=tf.float32)
         self.z = self.z_mu + tf.sqrt(tf.exp(self.z_log_sigma_sq)) * eps
 
     # decoder
-    with tf.variable_scope('res_block3'):
-        net = _residual_block(self.z, filter_size=3, filter_num=32)
-    with tf.variable_scope('res_block4'):
-        net = _residual_block(net, filter_size=3, filter_num=32)
+    with tf.variable_scope('conv6'):
+        net = conv2d(self.z, 64, 3, 1, padding='SAME')
+    with tf.variable_scope('conv7'):
+        net = conv2d(net, 64, 3, 1, padding='SAME')
     with tf.variable_scope('upsample1'):
-        net = _upsample(net, num_filters=32, filter_size=3, strides=2)
+        net = _upsample(net, 64, filter_size=3, strides=2, inst_norm=False)
     with tf.variable_scope('upsample2'):
-        net = _upsample(net, num_filters=32, filter_size=3, strides=2)
-    with tf.variable_scope('upsample3'):
-        net = _upsample(net, num_filters=32, filter_size=3, strides=2)
+        net = _upsample(net, 64, filter_size=3, strides=2, inst_norm=False)
     with tf.variable_scope('smoothing'):
-        net = _conv_inst_norm(net, num_filters=3, filter_size=3, strides=1, relu=False)
-        self.net_out = tf.nn.sigmoid(net)
+        net = conv2d(net, 3, 3, 1, padding='SAME',activation_fn=None)
+        self.net_out = tf.nn.sigmoid(net) * 255.0
 
 
 
@@ -173,12 +170,13 @@ def _instance_norm(net, train=True):
     return out
 
 
-def _upsample(net, num_filters, filter_size, strides):
+def _upsample(net, num_filters, filter_size, strides, inst_norm=True):
     H = tf.shape(net)[1]
     W = tf.shape(net)[2]
     net = tf.image.resize_nearest_neighbor(net,(H*strides, W*strides),
                                                align_corners=False, name='resize')
     net = conv2d(net, num_filters, filter_size, 1, padding='SAME',
                  activation_fn=None, scope='conv2d')
-    net = _instance_norm(net)
+    if inst_norm:
+        net = _instance_norm(net)
     return tf.nn.relu(net)
