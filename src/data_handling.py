@@ -99,9 +99,9 @@ class CIFAR10_data():
                     self.labels.append(label)
                     idxs_to_keep.append(idx)
             if self.X is None:
-                self.X = images[idxs_to_keep]
+                self.X = images[idxs_to_keep] / 255.0
             else:
-                self.X = np.concatenate((self.X, images[idxs_to_keep]))
+                self.X = np.concatenate((self.X, images[idxs_to_keep] / 255.0))
         
         self.Nimages = len(self.X)
     

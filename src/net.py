@@ -126,9 +126,43 @@ def build_conv_vae_32(self):
         net = _upsample(net, 64, filter_size=3, strides=2, inst_norm=False)
     with tf.variable_scope('smoothing'):
         net = conv2d(net, 3, 3, 1, padding='SAME',activation_fn=None)
-        self.net_out = tf.nn.sigmoid(net) * 255.0
+        self.net_out = net
 
 
+def build_cifar10_vae(self):
+    # encoder
+    with tf.variable_scope('conv1'):
+        net = conv2d(self.X, 3, 4, 2, padding='SAME', activation_fn=tf.nn.relu)
+    with tf.variable_scope('conv2'):
+        net = conv2d(net, 64, 4, 2, padding='SAME', activation_fn=tf.nn.relu)
+    with tf.variable_scope('conv3'):
+        net = conv2d(net, 64, 4, 2, padding='SAME', activation_fn=tf.nn.relu)
+    with tf.variable_scope('flatten'):
+        net = tf.layers.flatten(net)
+    with tf.variable_scope('dense1_1'):
+        self.z_mu = tf.layers.dense(net, units=128)
+    with tf.variable_scope('dense1_2'):
+        self.z_log_sigma_sq = tf.layers.dense(net, units=128)
+    
+    # embedded space
+    with tf.variable_scope('embedded_space'):
+        eps = tf.random_normal(shape=tf.shape(self.z_log_sigma_sq), mean=0, stddev=1, dtype=tf.float32)
+        self.z = self.z_mu + tf.exp(self.z_log_sigma_sq) * eps
+    
+    # decoder
+    with tf.variable_scope('dense2'):
+        net = tf.layers.dense(self.z, units=4*4*64)
+    with tf.variable_scope('reshape'):
+        net = tf.reshape(net, [-1, 4, 4, 64])
+    with tf.variable_scope('deconv1'):
+        net = tf.layers.conv2d_transpose(net, 64, 4, 2, padding='SAME', activation=tf.nn.relu)
+    with tf.variable_scope('deconv2'):
+        net = tf.layers.conv2d_transpose(net, 64, 4, 2, padding='SAME', activation=tf.nn.relu)
+    with tf.variable_scope('deconv3'):
+        net = tf.layers.conv2d_transpose(net, 3, 4, 2, padding='SAME', activation=tf.nn.relu)
+    
+    self.net_out = tf.nn.sigmoid(net)
+        
 
 def _conv_inst_norm(net, num_filters, filter_size, strides, relu=True, name='conv2d'):
     net = conv2d(net, num_filters, filter_size, 
