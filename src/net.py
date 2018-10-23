@@ -130,36 +130,45 @@ def build_conv_vae_32(self):
 
 
 def build_cifar10_vae(self):
+    # similar architecture to https://github.com/chaitanya100100/VAE-for-Image-Generation
     # encoder
     with tf.variable_scope('conv1'):
-        net = conv2d(self.X, 3, 4, 2, padding='SAME', activation_fn=tf.nn.relu)
+        net = conv2d(self.X, 3, 2, 1, padding='SAME', activation_fn=tf.nn.relu)
     with tf.variable_scope('conv2'):
-        net = conv2d(net, 64, 4, 2, padding='SAME', activation_fn=tf.nn.relu)
+        net = conv2d(net, 32, 3, 2, padding='SAME', activation_fn=tf.nn.relu)
     with tf.variable_scope('conv3'):
-        net = conv2d(net, 64, 4, 2, padding='SAME', activation_fn=tf.nn.relu)
+        net = conv2d(net, 32, 3, 1, padding='SAME', activation_fn=tf.nn.relu)
+    with tf.variable_scope('conv4'):
+        net = conv2d(net, 32, 3, 1, padding='SAME', activation_fn=tf.nn.relu)
     with tf.variable_scope('flatten'):
         net = tf.layers.flatten(net)
-    with tf.variable_scope('dense1_1'):
-        self.z_mu = tf.layers.dense(net, units=128)
-    with tf.variable_scope('dense1_2'):
-        self.z_log_sigma_sq = tf.layers.dense(net, units=128)
+    with tf.variable_scope('dense_1'):
+            net = tf.layers.dense(net, units=128, activation=tf.nn.relu)
     
     # embedded space
     with tf.variable_scope('embedded_space'):
-        eps = tf.random_normal(shape=tf.shape(self.z_log_sigma_sq), mean=0, stddev=1, dtype=tf.float32)
-        self.z = self.z_mu + tf.exp(self.z_log_sigma_sq) * eps
+        with tf.variable_scope('z_mu'):
+            self.z_mu = tf.layers.dense(net, units=128)
+        with tf.variable_scope('z_log_sigma_sq'):
+            self.z_log_sigma_sq = tf.layers.dense(net, units=128)
+        with tf.variable_scope('noise'):
+            eps = tf.random_normal(shape=tf.shape(self.z_log_sigma_sq), mean=0, stddev=1, dtype=tf.float32)
+        with tf.variable_scope('z'):
+            self.z = self.z_mu + tf.exp(self.z_log_sigma_sq) * eps
     
     # decoder
-    with tf.variable_scope('dense2'):
-        net = tf.layers.dense(self.z, units=4*4*64)
+    with tf.variable_scope('dense3'):
+        net = tf.layers.dense(self.z, units=16*16*32, activation=tf.nn.relu)
     with tf.variable_scope('reshape'):
-        net = tf.reshape(net, [-1, 4, 4, 64])
-    with tf.variable_scope('deconv1'):
-        net = tf.layers.conv2d_transpose(net, 64, 4, 2, padding='SAME', activation=tf.nn.relu)
-    with tf.variable_scope('deconv2'):
-        net = tf.layers.conv2d_transpose(net, 64, 4, 2, padding='SAME', activation=tf.nn.relu)
-    with tf.variable_scope('deconv3'):
-        net = tf.layers.conv2d_transpose(net, 3, 4, 2, padding='SAME', activation=tf.nn.relu)
+        net = tf.reshape(net, [-1, 16, 16, 32])
+    with tf.variable_scope('conv5'):
+        net = conv2d(net, 32, 3, 1, padding='SAME', activation_fn=tf.nn.relu)
+    with tf.variable_scope('conv6'):
+        net = conv2d(net, 32, 3, 1, padding='SAME', activation_fn=tf.nn.relu)
+    with tf.variable_scope('upsample'):
+        net = _upsample(net, 32, filter_size=3, strides=2, inst_norm=False)
+    with tf.variable_scope('final_conv'):
+        net = conv2d(net, 3, 3, 1, padding='SAME', activation_fn=None)
     
     self.net_out = tf.nn.sigmoid(net)
         

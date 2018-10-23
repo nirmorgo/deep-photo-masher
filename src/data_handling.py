@@ -91,6 +91,7 @@ class CIFAR10_data():
         for file_name in file_names:
             data_dict = self.load_batch(file_name)
             images = data_dict["data"].reshape((10000,3,32,32))
+            images = images.astype(np.float32)
             images = np.rollaxis(images, 1, 4)
             labels = data_dict["labels"]
             idxs_to_keep = []
