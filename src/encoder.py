@@ -1,8 +1,7 @@
 import tensorflow as tf 
-from src.net import build_cifar10_vae as autoencoder
 
 class AE():
-    def __init__(self, **kwargs):
+    def __init__(self, net_func, **kwargs):
         '''
         creates an autoencoder instance
         input params:
@@ -10,6 +9,8 @@ class AE():
         learning_rate (optional) - determines the initial learning rate that will be set for the training process. default - 0.001
         c_l1 (optional) - weight of L1 loss, default - 1
         c_l2 (optional) - weight of L2 loss, default - 1
+        c_tv (optional) - weight of TV loss, default - 1
+        c_kl (optional) - weight of KL-divergence loss, default - 1e-6
         '''
         self.sess = get_session()
         self.params = {}
@@ -19,7 +20,7 @@ class AE():
         self.c_l1 = self.params.get('c_l1', 1)
         self.c_l2 = self.params.get('c_l2', 1)
         self.c_tv = self.params.get('c_tv', 1)
-        self.c_kl = self.params.get('c_tv', 1e-6)
+        self.c_kl = self.params.get('c_kl', 1e-6)
         self.temp_folder = './tmp/'
         self.best_loss = 1e25   # Will be used to monitor the best loss and save it
 
@@ -27,7 +28,7 @@ class AE():
             self.X = tf.placeholder(tf.float32, [None,self.img_size,self.img_size,3], name='X')
             self.global_step = tf.Variable(0, name='global_step', trainable=False) 
         with tf.variable_scope('AutoEncoder'):
-            autoencoder(self)
+            net_func(self)
         with tf.variable_scope('Loss'):
             self.loss = self.loss_func()
             tf.summary.scalar('Total_Loss', self.loss)        
@@ -57,31 +58,31 @@ class AE():
 
         loss = self.c_l1 * l1_loss
         
-#        with tf.variable_scope('L2_loss'):
-#            l2_loss = tf.nn.l2_loss(self.X - img) / elem_num
-#            tf.summary.scalar('L2_loss', l2_loss)
-#        
-#        loss += self.c_l2 * l2_loss
+        with tf.variable_scope('L2_loss'):
+            l2_loss = tf.nn.l2_loss(self.X - img) / elem_num
+            tf.summary.scalar('L2_loss', l2_loss)
         
-#        with tf.variable_scope('TV_loss'):
-#            def _tensor_size(tensor):
-#                H = tf.shape(tensor)[1]
-#                W = tf.shape(tensor)[2]
-#                C = tf.shape(tensor)[3]
-#                return tf.cast(H*W*C, tf.float32)
-#            
-#            tv_y_size = _tensor_size(img[:,1:,:,:])
-#            tv_x_size = _tensor_size(img[:,:,1:,:])
-#            imgoy = tf.slice(img, [0,0,0,0],[B,H-1,W,3])
-#            imgy = tf.slice(img, [0,1,0,0],[B,H-1,W,3])
-#            imgox = tf.slice(img, [0,0,0,0],[B,H,W-1,3])
-#            imgx = tf.slice(img, [0,0,1,0],[B,H,W-1,3])
-#            y_tv = tf.nn.l2_loss(imgoy-imgy)
-#            x_tv = tf.nn.l2_loss(imgox-imgx)
-#            tv_loss = 2*(x_tv/tv_x_size + y_tv/tv_y_size)/tf.cast(B,tf.float32)
-#            tf.summary.scalar('TV_loss', tv_loss)
-#        
-#        loss += self.c_tv * tv_loss
+        loss += self.c_l2 * l2_loss
+        
+        with tf.variable_scope('TV_loss'):
+            def _tensor_size(tensor):
+                H = tf.shape(tensor)[1]
+                W = tf.shape(tensor)[2]
+                C = tf.shape(tensor)[3]
+                return tf.cast(H*W*C, tf.float32)
+            
+            tv_y_size = _tensor_size(img[:,1:,:,:])
+            tv_x_size = _tensor_size(img[:,:,1:,:])
+            imgoy = tf.slice(img, [0,0,0,0],[N,H-1,W,3])
+            imgy = tf.slice(img, [0,1,0,0],[N,H-1,W,3])
+            imgox = tf.slice(img, [0,0,0,0],[N,H,W-1,3])
+            imgx = tf.slice(img, [0,0,1,0],[N,H,W-1,3])
+            y_tv = tf.nn.l2_loss(imgoy-imgy)
+            x_tv = tf.nn.l2_loss(imgox-imgx)
+            tv_loss = 2*(x_tv/tv_x_size + y_tv/tv_y_size)/tf.cast(N,tf.float32)
+            tf.summary.scalar('TV_loss', tv_loss)
+        
+        loss += self.c_tv * tv_loss
 
         with tf.variable_scope('KL_div_loss'):
             KL_loss = tf.reduce_mean(- 0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq - tf.square(self.z_mu) - tf.exp(self.z_log_sigma_sq),1))
