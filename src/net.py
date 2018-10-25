@@ -71,7 +71,7 @@ def build_vae_128(self):
         self.z_mu = fully_connected(encoder_out, 128, activation_fn=None, scope='z_mean')
         self.z_log_sigma_sq = fully_connected(encoder_out, 128, activation_fn=None, scope='z_sigma')
         eps = tf.random_normal(shape=tf.shape(self.z_log_sigma_sq), mean=0, stddev=1, dtype=tf.float32)
-        self.z = self.z_mu + tf.sqrt(tf.exp(self.z_log_sigma_sq)) * eps
+        self.z = self.z_mu + tf.exp(self.z_log_sigma_sq) * eps
 
     # decoder
     with tf.variable_scope('Decoder'):
@@ -98,7 +98,7 @@ def build_vae_128(self):
 def build_vanila_cifar10_vae(self):
     '''
     a basic vanila version of a vae for cifar10
-    used to initialize the net architecture of an AE() object
+    used to initialize the net architecture of an VAE() object
     The current architecture is quite big though, and it has no convolutional up/downsampling
     '''
     with tf.variable_scope('conv1'):

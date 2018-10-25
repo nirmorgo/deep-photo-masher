@@ -27,5 +27,5 @@ def preprocess_image(img, img_resize=480):
     elif img_w > img_h:
         start_point = np.random.randint(img_w-img_h)
         img = img[:, start_point:start_point+img_h, :]
-    img = resize(img, (img_resize,img_resize), mode='constant', anti_aliasing=True)
+    img = resize(img, (img_resize,img_resize), mode='constant')
     return img

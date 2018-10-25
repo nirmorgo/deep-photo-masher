@@ -1,6 +1,6 @@
 # deep-photo-masher
 
-The main goal of this project is to play around and a little bit with variational autoencoders (VAE) for educational purposes.
+The main goal of this project is to play around and a little bit with variational autoencoders (VAE) for educational purposes. This a workspace where I experiment with different VAE architectures and datasets.
 
 VAEs can be used for image encoding and for artificial images creation. the main difference between VAEs and GANs, is the fact that with VAEs we can easily extract a latent vector (z) represenatation of an existing image, and play around with it.
 

@@ -1,6 +1,6 @@
 import tensorflow as tf 
 
-class AE():
+class VAE():
     def __init__(self, net_func, **kwargs):
         '''
         creates an autoencoder instance
@@ -104,7 +104,7 @@ class AE():
         if learning_rate is not None:
             self.sess.run(tf.assign(self.LR, learning_rate))
         for i in range(iters):
-            feed_dict=data.get_ae_feed_dict(X=self.X,  batch_size=batch_size, img_resize=self.img_size, preload=False)
+            feed_dict=data.get_vae_feed_dict(X=self.X,  batch_size=batch_size, img_resize=self.img_size, preload=False)
             train_scalars, _, g_step, current_loss = self.sess.run([self.scalars, self.train_step, self.global_step, self.loss],
                                                         feed_dict=feed_dict)
             self.writer.add_summary(train_scalars, g_step)
