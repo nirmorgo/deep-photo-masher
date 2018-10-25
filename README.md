@@ -13,3 +13,6 @@ hopefully, the images created from latent space arithmetics (decoded(w1 * z1 + w
 
 This project is still a work in progress.
 
+## CIFAR10 examples
+![Alt text](data/readme_images/cifar10_img1.JPG "2 cats")
+![Alt text](data/readme_images/cifar10_img2.JPG "a cat and a small dog")
