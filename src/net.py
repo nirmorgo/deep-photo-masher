@@ -99,6 +99,7 @@ def build_vanila_cifar10_vae(self):
     '''
     a basic vanila version of a vae for cifar10
     used to initialize the net architecture of an AE() object
+    The current architecture is quite big though, and it has no convolutional up/downsampling
     '''
     with tf.variable_scope('conv1'):
         net = conv2d(self.X, 3, 2, 1, padding='SAME', activation_fn=tf.nn.relu)
