@@ -2,13 +2,15 @@ import tensorflow as tf
 from tensorflow.contrib.layers import conv2d, conv2d_transpose
 
 
-def conv_inst_norm(net, num_filters, filter_size, strides, relu=True, name='conv2d'):
+def conv_inst_norm(net, num_filters, filter_size, strides,leaky_relu=False ,relu=True, name='conv2d'):
     net = conv2d(net, num_filters, filter_size, 
                                          strides, padding='SAME', 
                                          activation_fn=None,
                                          scope=name)
     net = instance_norm(net)
-    if relu:
+    if leaky_relu:
+        net = tf.nn.leaky_relu(net)
+    elif relu:
         net = tf.nn.relu(net)
 
     return net
@@ -42,7 +44,7 @@ def instance_norm(net, train=True):
     return out
 
 
-def upsample(net, num_filters, filter_size, strides, inst_norm=True):
+def upsample(net, num_filters, filter_size, strides, inst_norm=True, leaky_relu=False, relu=True):
     H = tf.shape(net)[1]
     W = tf.shape(net)[2]
     net = tf.image.resize_nearest_neighbor(net,(H*strides, W*strides),
@@ -51,4 +53,9 @@ def upsample(net, num_filters, filter_size, strides, inst_norm=True):
                  activation_fn=None, scope='conv2d')
     if inst_norm:
         net = instance_norm(net)
-    return tf.nn.relu(net)
+    if leaky_relu:
+        return tf.nn.leaky_relu(net)
+    elif relu:
+        return tf.nn.relu(net)
+    
+    return net

@@ -15,17 +15,23 @@ def load_image(image_path, img_resize=480):
     img = img.astype("float32")
     return img
 
-def preprocess_image(img, img_resize=480):
+def preprocess_image(img, img_resize=480, random_crop=False):
     '''
     A function that gets an image and resizing it to desired size.
     the function will crop the image to a square befor resize.
     '''
     img_h, img_w = img.shape[0], img.shape[1]
     if img_h > img_w:
-        start_point = np.random.randint(img_h-img_w) # add a little bit of randomallity to the crop
+        if random_crop:
+            start_point = np.random.randint(img_h-img_w) # add a little bit of randomallity to the crop
+        else:
+            start_point = (img_h - img_w) // 2
         img = img[start_point:start_point+img_w, :, :]
     elif img_w > img_h:
-        start_point = np.random.randint(img_w-img_h)
+        if random_crop:
+            start_point = np.random.randint(img_w-img_h)
+        else:
+            start_point = (img_w - img_h) //2
         img = img[:, start_point:start_point+img_h, :]
-    img = resize(img, (img_resize,img_resize), mode='constant')
+    img = resize(img, (img_resize,img_resize), mode='constant', anti_aliasing=True)
     return img
