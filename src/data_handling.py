@@ -8,64 +8,76 @@ import numpy as np
 import random
 
 
-class COCO_data():
+class VAE_data():
     '''
     this data handler is designed to work with folders of unlabaled images
     '''
-    def __init__(self):
+    def __init__(self, img_resize=64):
         self.Nimages=0
         self.images_list = []
         self.X = None
-        self.idx_counter = 1e15
-        self.N_preload = 20000
+        self.loaded_imgs = False
+        self.img_resize=img_resize
+        self.current_train_idx = 1e24
+        self.epoch_counter = 1
     
     def load_images_list_from_directory(self, folder_path):
         self.images_list = [folder_path+f for f in listdir(folder_path) if isfile(join(folder_path, f))]        
         self.Nimages = len(self.images_list)
+    
+    def load_images_to_memory(self, Nmax=1e26):
+        N = min(Nmax, self.Nimages)
+        self.X = np.zeros((N, self.img_resize, self.img_resize, 3), dtype=np.float32)
+        for i in range(N):
+            self.X[i] = load_image(self.images_list[i], self.img_resize)
+            if (i+1) % 1000 == 0:
+                print('loaded %d images' % (i+1) )
+        self.loaded_imgs = True
+        self.Nimages = N
 
-    def preload_images(self, img_resize=480):
-        '''
-        preloading data to ram, to reduce IO time loss on train
-        '''
-        print('loading random %d images to memory' % self.N_preload)
-        self.idx_counter = 0
-        self.X = []
-        idxs = random.sample(range(0, self.Nimages), self.N_preload)
-        for idx in idxs:
-            X_temp = np.array(load_image(self.images_list[idx], img_resize))
-            # X_temp = np.reshape(self.X, ((1,) + self.X.shape))
-            self.X.append(X_temp)
-        self.X = np.array(self.X)
-
-    def get_vae_feed_dict(self, X, batch_size=1, img_resize=480, preload=False):
+    def restart_epoch(self):
+        print('Starting epoch %d' % self.epoch_counter)
+        self.rand_train_idxs = np.random.permutation(self.Nimages)
+        self.current_train_idx = 0
+        self.epoch_counter += 1
+    
+    def get_vae_feed_dict(self, X, batch_size=4, preprocess_func=None, **kwargs):
         '''
         loads random batch of images from list and return a tensorflow feed dictionary
         inputs:
             X - will be used a key for the dictionary. can use a tf.Placeholder or a string.
             batch_size - integer
-            img_resize - integer, number of pixels for the images in the feed dict (square images)
         '''
-        if not preload:
-            idx = random.sample(range(0, self.Nimages), batch_size)
-            Xout = np.array(load_image(self.images_list[idx[0]], img_resize))
-            Xout = np.reshape(Xout, ((1,) + Xout.shape))
-            if batch_size == 1:
-                return {X: Xout}
-            else:
-                for i in idx[1:]:
-                    Xtemp = np.array(load_image(self.images_list[i], img_resize))
-                    Xtemp = np.reshape(Xtemp, ((1,) + Xtemp.shape))
-                    Xout = np.append(Xout, Xtemp, axis=0)
-                out_dict = {X: Xout}
-            return out_dict
+        np.random.seed(None)
+        if self.current_train_idx + batch_size > self.Nimages:
+            self.restart_epoch()
         
-        else:
-            if self.idx_counter >= self.N_preload - batch_size:
-                self.preload_images(img_resize)
-            Xout = self.X[self.idx_counter:self.idx_counter+batch_size]
-            self.idx_counter += batch_size
-
-            return {X: Xout}
+        idxs = self.rand_train_idxs[self.current_train_idx:self.current_train_idx + batch_size]
+        self.current_train_idx += batch_size
+        
+        if self.loaded_imgs:
+            X_out = self.X[idxs]
+            if preprocess_func is not None:
+                X_out = preprocess_func(X_out)
+            return {X: X_out}
+        
+        Xout = np.array(load_image(self.images_list[idxs[0]], self.img_resize))
+        Xout = np.reshape(Xout, ((1,) + Xout.shape))
+        if batch_size > 1:
+            for i in idxs[1:]:
+                Xtemp = np.array(load_image(self.images_list[i], self.img_resize))
+                Xtemp = np.reshape(Xtemp, ((1,) + Xtemp.shape))
+                Xout = np.append(Xout, Xtemp, axis=0)
+        
+        if preprocess_func is not None:
+            X_out = preprocess_func(X_out)
+        
+        return {X: X_out}
+            
+    
+    def get_image(self,idx):
+        return load_image(self.images_list[idx], self.img_resize)
+    
 
 class CIFAR10_data():
     def __init__(self):
@@ -130,8 +142,6 @@ class VGGFace_data():
         self.Nimages=0
         self.images_list = []
         self.X = None
-        self.idx_counter = 1e15
-        self.N_preload = 20000
     
     def load_images_list_from_directory(self, folder_path):
         files = []
@@ -164,4 +174,3 @@ class VGGFace_data():
                 Xout = np.append(Xout, Xtemp, axis=0)
             out_dict = {X: Xout}
         return out_dict
-        

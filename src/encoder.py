@@ -104,20 +104,32 @@ class VAE():
         if learning_rate is not None:
             self.sess.run(tf.assign(self.LR, learning_rate))
         for i in range(iters):
-            feed_dict=data.get_vae_feed_dict(X=self.X,  batch_size=batch_size, img_resize=self.img_size, preload=False)
+            feed_dict=data.get_vae_feed_dict(X=self.X, batch_size=batch_size, 
+                                             preprocess_func = self.preprocess)
             train_scalars, _, g_step, current_loss = self.sess.run([self.scalars, self.train_step, self.global_step, self.loss],
                                                         feed_dict=feed_dict)
             self.writer.add_summary(train_scalars, g_step)
             if g_step % 25 == 0 or i == 0:
                 print('iteration %d, loss: %.3f' % (g_step, current_loss))
                 if current_loss < self.best_loss:
-                    self.save_model_to_checkpoint(self.temp_folder+'/model_files/best_model/model')
+                    self.save_weights_to_checkpoint(self.temp_folder+'/model_files/best_model/model')
                     self.best_loss = current_loss
             
             if g_step % 100 == 0:
                 self.save_model_to_checkpoint()
         self.save_model_to_checkpoint()
-
+    
+    @staticmethod    
+    def preprocess(img):
+        # centers the image/s with [-1,1] range
+        return img * 2 - 1
+    
+    @staticmethod    
+    def deprocess(img):
+        # centers the image/s back in [0,1] range
+        return img / 2 + 0.5
+    
+    
     def get_z(self, img):
         '''
         get a np.array with a single image (H,W,C) or a batch of images (N,H,W,C)
@@ -126,7 +138,7 @@ class VAE():
         '''
         if len(img.shape) == 3:
             img = img.reshape((1,)+img.shape)
-        z = self.sess.run(self.z, feed_dict={self.X:img})
+        z = self.sess.run(self.z, feed_dict={self.X:self.preprocess(img)})
         return z
 
     def get_image(self, img):
@@ -137,8 +149,8 @@ class VAE():
         '''
         if len(img.shape) == 3:
             img = img.reshape((1,)+img.shape)
-        z = self.sess.run(self.net_out, feed_dict={self.X:img})
-        return z
+        out_img = self.sess.run(self.net_out, feed_dict={self.X:self.preprocess(img)})
+        return self.deprocess(out_img)
 
     def get_img_from_z(self, z):
         '''
@@ -146,8 +158,8 @@ class VAE():
         returns the corresponding output images from the autoencoder
         user should make sure that the inputs have dimensions that match the autoencoder
         '''
-        out = self.sess.run(self.net_out, feed_dict={self.z:z})
-        return out
+        out_img = self.sess.run(self.net_out, feed_dict={self.z:z})
+        return self.deprocess(out_img)
     
     def save_model_to_checkpoint(self, path=None):
         saver = tf.train.Saver()
@@ -160,6 +172,18 @@ class VAE():
             path = self.temp_folder+'/model_files/model'
         saver = tf.train.Saver()
         saver.restore(self.sess, path)
+        
+    def load_weights_from_checkpoint(self, path=None):
+        if path is None:
+            path = self.path
+        saver = tf.train.Saver(var_list=tf.trainable_variables())
+        saver.restore(self.sess, path) 
+        
+    def save_weights_to_checkpoint(self, path=None):
+        if path is None:
+            path = self.path
+        saver = tf.train.Saver(var_list=tf.trainable_variables())
+        saver.save(self.sess, path)
 
 
 def get_session():
