@@ -17,5 +17,5 @@ This project is still a work in progress.
 ![Alt text](data/readme_images/cifar10_img1.JPG "2 cats")
 ![Alt text](data/readme_images/cifar10_img2.JPG "a cat and a small dog")
 ## CelebA examples
-![Alt text](data/readme_images/celebA_img1.JPG "gradual aging")
-![Alt text](data/readme_images/celebA_img2.JPG "black dude and white woman")
+![Alt text](data/readme_images/celebA_img1.JPG "celebA sample 1")
+![Alt text](data/readme_images/celebA_img2.JPG "celebA sample 2")

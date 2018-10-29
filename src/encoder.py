@@ -110,7 +110,7 @@ class VAE():
                                                         feed_dict=feed_dict)
             self.writer.add_summary(train_scalars, g_step)
             if g_step % 25 == 0 or i == 0:
-                print('iteration %d, loss: %.3f' % (g_step, current_loss))
+                print('iteration %d, loss: %.3e' % (g_step, current_loss))
                 if current_loss < self.best_loss:
                     self.save_weights_to_checkpoint(self.temp_folder+'/model_files/best_model/model')
                     self.best_loss = current_loss
@@ -122,6 +122,7 @@ class VAE():
     @staticmethod    
     def preprocess(img):
         # centers the image/s with [-1,1] range
+        # such pre-process is needed when using tanh activation on output layer
         return img * 2 - 1
     
     @staticmethod    

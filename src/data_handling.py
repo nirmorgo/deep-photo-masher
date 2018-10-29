@@ -89,10 +89,13 @@ class CIFAR10_data():
         self.decoding = {0:'airplane', 1:'automobile', 2:'bird', 3:'cat', 4:'deer',
                          5:'dog',6:'frog', 7:'horse',  8:'ship', 9:'truck'}
         self.current_train_idx = 1e15
+        self.epoch_counter = 1
 
     def restart_epoch(self):
+        print('Starting epoch %d' % self.epoch_counter)
         self.rand_train_idxs = np.random.permutation(self.Nimages)
         self.current_train_idx = 0
+        self.epoch_counter += 1
     
     def load_batch(self, path):
         with open(path, 'rb') as fo:
@@ -100,7 +103,7 @@ class CIFAR10_data():
         return dict
     
     def load_data(self, folder_path, keep_classes=[0,1,2,3,4,5,6,7,8,9], **kwargs):
-        file_names = glob.glob(folder_path+'data*')
+        file_names = glob(folder_path+'data*')
         for file_name in file_names:
             data_dict = self.load_batch(file_name)
             images = data_dict["data"].reshape((10000,3,32,32))
