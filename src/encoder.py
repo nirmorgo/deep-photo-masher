@@ -1,4 +1,7 @@
 import tensorflow as tf 
+from src.loss_funcs import l1_loss, l2_loss, kl_div_loss, tv_loss
+from src.loss_funcs import gram_matrix, content_loss, style_loss
+from src.vgg19net import VGG19
 
 class VAE():
     def __init__(self, net_func, **kwargs):
@@ -21,6 +24,8 @@ class VAE():
         self.c_l2 = self.params.get('c_l2', 1)
         self.c_tv = self.params.get('c_tv', 1)
         self.c_kl = self.params.get('c_kl', 1e-6)
+        self.c_content = self.params.get('c_content', 1e-7)
+        self.c_style = self.params.get('c_style', 1e-7)
         self.temp_folder = './tmp/'
         self.best_loss = 1e25   # Will be used to monitor the best loss and save it
 
@@ -31,9 +36,11 @@ class VAE():
             net_func(self)
         with tf.variable_scope('Loss'):
             self.loss = self.loss_func()
-            tf.summary.scalar('Total_Loss', self.loss)        
+        with tf.variable_scope('Semantic_Loss'):
+            self.loss += self.semantic_loss_func()
         with tf.variable_scope('Optimizer'):
             self.train_step = self.train_step_func()  
+        tf.summary.scalar('Total_Loss', self.loss)
         self.scalars = tf.summary.merge_all()
         self.writer = tf.summary.FileWriter(self.temp_folder + '/tensorflow_logs/', graph=self.sess.graph)
 
@@ -44,54 +51,72 @@ class VAE():
 #        self.Model = tf.keras.Model(inputs=inputs, outputs=self.net_out)
     
     def loss_func(self):
-        img = self.net_out
-        with tf.variable_scope('inputs_shape'):
-            N = tf.shape(self.X)[0]
-            H = tf.shape(self.X)[1]
-            W = tf.shape(self.X)[2]
-            C = tf.shape(self.X)[3]
-            elem_num = tf.cast(N*H*W*C, tf.float32)
-        
         with tf.variable_scope('L1_loss'):
-            l1_loss = tf.losses.absolute_difference(self.X, img) / elem_num
-            tf.summary.scalar('L1_loss', l1_loss) 
-
-        loss = self.c_l1 * l1_loss
+            l1_loss_ = l1_loss(self.X, self.net_out)
+        tf.summary.scalar('L1_loss', l1_loss_) 
+        loss = self.c_l1 * l1_loss_
         
         with tf.variable_scope('L2_loss'):
-            l2_loss = tf.nn.l2_loss(self.X - img) / elem_num
-            tf.summary.scalar('L2_loss', l2_loss)
-        
-        loss += self.c_l2 * l2_loss
+            l2_loss_ = l2_loss(self.X, self.net_out)
+        tf.summary.scalar('L2_loss', l2_loss_)
+        loss += self.c_l2 * l2_loss_
         
         with tf.variable_scope('TV_loss'):
-            def _tensor_size(tensor):
-                H = tf.shape(tensor)[1]
-                W = tf.shape(tensor)[2]
-                C = tf.shape(tensor)[3]
-                return tf.cast(H*W*C, tf.float32)
-            
-            tv_y_size = _tensor_size(img[:,1:,:,:])
-            tv_x_size = _tensor_size(img[:,:,1:,:])
-            imgoy = tf.slice(img, [0,0,0,0],[N,H-1,W,3])
-            imgy = tf.slice(img, [0,1,0,0],[N,H-1,W,3])
-            imgox = tf.slice(img, [0,0,0,0],[N,H,W-1,3])
-            imgx = tf.slice(img, [0,0,1,0],[N,H,W-1,3])
-            y_tv = tf.nn.l2_loss(imgoy-imgy)
-            x_tv = tf.nn.l2_loss(imgox-imgx)
-            tv_loss = 2*(x_tv/tv_x_size + y_tv/tv_y_size)/tf.cast(N,tf.float32)
-            tf.summary.scalar('TV_loss', tv_loss)
-        
-        loss += self.c_tv * tv_loss
+            tv_loss_ = tv_loss(self.net_out)
+        tf.summary.scalar('TV_loss', tv_loss_)
+        loss += self.c_tv * tv_loss_
 
         with tf.variable_scope('KL_div_loss'):
-            KL_loss = tf.reduce_mean(- 0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq - tf.square(self.z_mu) - tf.exp(self.z_log_sigma_sq),1))
-            KL_loss = KL_loss / elem_num
-            tf.summary.scalar('KL_div_loss', KL_loss)
-        
-        loss += self.c_kl * KL_loss
+            kl_loss_ = kl_div_loss(self.X, self.z_mu, self.z_log_sigma_sq)
+        tf.summary.scalar('KL_div_loss', kl_loss_)
+        loss += self.c_kl * kl_loss_
 
         return loss
+    
+    def semantic_loss_func(self):
+        content_layer = 'conv4_2'
+        style_layers_list = [
+                    ('conv1_1', 0.2),
+                    ('conv2_1', 0.2),
+                    ('conv3_1', 0.2),
+                    ('conv4_1', 0.2),
+                    ('conv5_1', 0.2)]
+        style_layers = [layer[0] for layer in style_layers_list]
+        style_weights = [layer[1] for layer in style_layers_list]
+        vgg19 = VGG19()
+        with tf.variable_scope('Input_Features'):
+            with tf.variable_scope('VGG19_layers'):
+                X_vgg = vgg19.preprocess(self.X)
+                X_features = vgg19.net(X_vgg)
+            # Extract content features from inputs  
+            X_content = X_features[content_layer]
+            X_feat_vars = [X_features[layer] for layer in style_layers]                
+            # Compute list of TensorFlow Gram matrices
+            X_feats = []
+            for X_feat_var in X_feat_vars:
+                X_feats.append(gram_matrix(X_feat_var))
+        
+        with tf.variable_scope('Generated_Features'):             
+            with tf.variable_scope('VGG19_layers'):
+                net_out_vgg = vgg19.preprocess(self.net_out)
+                gen_features = vgg19.net(net_out_vgg)
+            gen_content = gen_features[content_layer]
+            # Extract style features from target  
+            gen_style_feat_vars = [gen_features[layer] for layer in style_layers]                
+            # Compute list of TensorFlow Gram matrices
+            gen_style_feats = []
+            for style_feat_var in gen_style_feat_vars:
+                gen_style_feats.append(gram_matrix(style_feat_var))
+            
+        with tf.variable_scope('Content_loss'):
+            c_loss = content_loss(gen_content, X_content)
+        tf.summary.scalar('Content_Loss', c_loss)
+        
+        with tf.variable_scope('Style_loss'):
+            s_loss = style_loss(gen_style_feats, X_feats, style_layers, style_weights)
+        tf.summary.scalar('Style_Loss', s_loss)
+        
+        return self.c_content * c_loss + self.c_style * s_loss
     
     def train_step_func(self):
         learning_rate = self.params.get('learning_rate', 0.001)

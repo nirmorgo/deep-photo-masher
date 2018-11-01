@@ -25,7 +25,9 @@ class VAE_data():
         self.images_list = [folder_path+f for f in listdir(folder_path) if isfile(join(folder_path, f))]        
         self.Nimages = len(self.images_list)
     
-    def load_images_to_memory(self, Nmax=1e26):
+    def load_images_to_memory(self, Nmax=1e26, random_sample=False):
+        if random_sample:
+            np.random.shuffle(self.images_list)
         N = min(Nmax, self.Nimages)
         self.X = np.zeros((N, self.img_resize, self.img_resize, 3), dtype=np.float32)
         for i in range(N):
@@ -61,13 +63,13 @@ class VAE_data():
                 X_out = preprocess_func(X_out)
             return {X: X_out}
         
-        Xout = np.array(load_image(self.images_list[idxs[0]], self.img_resize))
-        Xout = np.reshape(Xout, ((1,) + Xout.shape))
+        X_out = np.array(load_image(self.images_list[idxs[0]], self.img_resize))
+        X_out = np.reshape(X_out, ((1,) + X_out.shape))
         if batch_size > 1:
             for i in idxs[1:]:
                 Xtemp = np.array(load_image(self.images_list[i], self.img_resize))
                 Xtemp = np.reshape(Xtemp, ((1,) + Xtemp.shape))
-                Xout = np.append(Xout, Xtemp, axis=0)
+                X_out = np.append(X_out, Xtemp, axis=0)
         
         if preprocess_func is not None:
             X_out = preprocess_func(X_out)
