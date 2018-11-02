@@ -14,6 +14,7 @@ class VAE():
         c_l2 (optional) - weight of L2 loss, default - 1
         c_tv (optional) - weight of TV loss, default - 1
         c_kl (optional) - weight of KL-divergence loss, default - 1e-6
+        semantic_loss (optional) - to use semantic loss functions or not, default - True
         '''
         self.sess = get_session()
         self.params = {}
@@ -26,6 +27,7 @@ class VAE():
         self.c_kl = self.params.get('c_kl', 1e-6)
         self.c_content = self.params.get('c_content', 1e-7)
         self.c_style = self.params.get('c_style', 1e-7)
+        self.semantic_loss = self.params.get('semantic_loss', False)
         self.temp_folder = './tmp/'
         self.best_loss = 1e25   # Will be used to monitor the best loss and save it
 
@@ -36,8 +38,9 @@ class VAE():
             net_func(self)
         with tf.variable_scope('Loss'):
             self.loss = self.loss_func()
-        with tf.variable_scope('Semantic_Loss'):
-            self.loss += self.semantic_loss_func()
+        if self.semantic_loss:
+            with tf.variable_scope('Semantic_Loss'):
+                self.loss += self.semantic_loss_func()
         with tf.variable_scope('Optimizer'):
             self.train_step = self.train_step_func()  
         tf.summary.scalar('Total_Loss', self.loss)
@@ -76,11 +79,9 @@ class VAE():
     def semantic_loss_func(self):
         content_layer = 'conv4_2'
         style_layers_list = [
-                    ('conv1_1', 0.2),
-                    ('conv2_1', 0.2),
-                    ('conv3_1', 0.2),
-                    ('conv4_1', 0.2),
-                    ('conv5_1', 0.2)]
+                    ('conv1_1', 0.33),
+                    ('conv2_1', 0.33),
+                    ('conv3_1', 0.33)]
         style_layers = [layer[0] for layer in style_layers_list]
         style_weights = [layer[1] for layer in style_layers_list]
         vgg19 = VGG19()
