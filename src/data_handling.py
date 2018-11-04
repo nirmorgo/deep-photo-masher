@@ -6,13 +6,14 @@ from glob import glob
 import pickle
 import numpy as np
 import random
+import tensorflow as tf
 
 
 class VAE_data():
     '''
     this data handler is designed to work with folders of unlabaled images
     '''
-    def __init__(self, img_resize=64):
+    def __init__(self, img_resize=128):
         self.Nimages=0
         self.images_list = []
         self.X = None
@@ -79,6 +80,28 @@ class VAE_data():
     
     def get_image(self,idx):
         return load_image(self.images_list[idx], self.img_resize)
+    
+    def tf_dataset_init(self, batch_size=64):
+        '''
+        initializing a tf.dataset object for faster train operations
+        the X_holder can be used for network training (instead of the place 
+        holdels and feed dicts)
+        '''
+        def _parse_function(filename):
+            image_string = tf.read_file(filename)
+            image_decoded = tf.image.decode_jpeg(image_string)
+            image_resized = tf.image.resize_images(image_decoded, [self.img_resize, self.img_resize])
+            image_fixed_dims = tf.reshape(image_resized, [self.img_resize, self.img_resize, 3])
+            image = tf.cast(image_fixed_dims, tf.float32) / 255.0
+            image = image * 2 - 1   # normalize between [-1,1] for tanh net output
+            return image
+
+        file_names = tf.constant(self.images_list)        
+        self.tf_dataset = tf.data.Dataset.from_tensor_slices(file_names).repeat()
+        self.tf_dataset = self.tf_dataset.shuffle(buffer_size=self.Nimages)
+        self.tf_dataset = self.tf_dataset.map(_parse_function).batch(batch_size)
+        iter = self.tf_dataset.make_one_shot_iterator()
+        self.X_holder = iter.get_next()
     
 
 class CIFAR10_data():

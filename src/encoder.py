@@ -1,10 +1,11 @@
+import time
 import tensorflow as tf 
 from src.loss_funcs import l1_loss, l2_loss, kl_div_loss, tv_loss
 from src.loss_funcs import gram_matrix, content_loss, style_loss
 from src.vgg19net import VGG19
 
 class VAE():
-    def __init__(self, net_func, **kwargs):
+    def __init__(self, net_func, tf_dataset_X_holder=None, **kwargs):
         '''
         creates an autoencoder instance
         input params:
@@ -15,6 +16,8 @@ class VAE():
         c_tv (optional) - weight of TV loss, default - 1
         c_kl (optional) - weight of KL-divergence loss, default - 1e-6
         semantic_loss (optional) - to use semantic loss functions or not, default - True
+        tf_dataset_X_holder - optional, a tf.dataset.iter object ready to load images. 
+                              can be used to train the net instead of feed dict
         '''
         self.sess = get_session()
         self.params = {}
@@ -31,8 +34,13 @@ class VAE():
         self.temp_folder = './tmp/'
         self.best_loss = 1e25   # Will be used to monitor the best loss and save it
 
+        
+        
         with tf.variable_scope('Inputs'):
-            self.X = tf.placeholder(tf.float32, [None,self.img_size,self.img_size,3], name='X')
+            if tf_dataset_X_holder is not None:
+                self.X = tf_dataset_X_holder
+            else:
+                self.X = tf.placeholder(tf.float32, [None,self.img_size,self.img_size,3], name='X')
             self.global_step = tf.Variable(0, name='global_step', trainable=False) 
         with tf.variable_scope('AutoEncoder'):
             net_func(self)
@@ -124,19 +132,26 @@ class VAE():
         self.LR = tf.Variable(learning_rate, name="LR")
         return tf.train.AdamOptimizer(self.LR).minimize(self.loss, global_step=self.global_step)
 
-    def train(self, data, iters=2000, batch_size=4, learning_rate=None):
+    def train(self, data, iters=2000, batch_size=4, use_tf_dataset=False, learning_rate=None):
+        start_time = time.time()
         print('Initialized Train!')
-        #iters_per_epoch = data.Nimages // batch_size
         if learning_rate is not None:
             self.sess.run(tf.assign(self.LR, learning_rate))
         for i in range(iters):
-            feed_dict=data.get_vae_feed_dict(X=self.X, batch_size=batch_size, 
-                                             preprocess_func = self.preprocess)
-            train_scalars, _, g_step, current_loss = self.sess.run([self.scalars, self.train_step, self.global_step, self.loss],
-                                                        feed_dict=feed_dict)
+            if use_tf_dataset:
+                train_scalars, _, g_step, current_loss = self.sess.run([self.scalars, self.train_step, self.global_step, self.loss])
+            else:
+                feed_dict=data.get_vae_feed_dict(X=self.X, batch_size=batch_size, 
+                                                 preprocess_func = self.preprocess)
+                train_scalars, _, g_step, current_loss = self.sess.run([self.scalars, self.train_step, self.global_step, self.loss],
+                                                            feed_dict=feed_dict)
             self.writer.add_summary(train_scalars, g_step)
             if g_step % 25 == 0 or i == 0:
-                print('iteration %d, loss: %.3e' % (g_step, current_loss))
+                run_time_seconds = time.time() - start_time
+                m, s = divmod(run_time_seconds, 60)
+                h, m = divmod(m, 60)
+                current_time = "%d:%02d:%02d" % (h, m, s)
+                print('iteration %d, loss: %.3e (%s)' % (g_step, current_loss, current_time))
                 if current_loss < self.best_loss:
                     self.save_weights_to_checkpoint(self.temp_folder+'/model_files/best_model/model')
                     self.best_loss = current_loss

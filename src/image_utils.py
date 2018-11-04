@@ -5,20 +5,22 @@ import imageio
 from skimage.transform import resize
 
 
-def load_image(image_path, img_resize=480):
+def load_image(image_path ,img_resize=480):
     assert exists(image_path), "image {} does not exist".format(image_path)
     img = imageio.imread(image_path)
     if (len(img.shape) != 3) or (img.shape[2] != 3):
         img = np.dstack((img, img, img))
-
-    img = preprocess_image(img, img_resize)
+    if img_resize != img.shape[0] or img_resize != img.shape[1]:
+        img = preprocess_image(img, img_resize)
+    else:
+        img = img/255.0
     img = img.astype("float32")
     return img
 
 def preprocess_image(img, img_resize=480, random_crop=False):
     '''
     A function that gets an image and resizing it to desired size.
-    the function will crop the image to a square befor resize.
+    the function will crop the image to a square before resize.
     '''
     img_h, img_w = img.shape[0], img.shape[1]
     if img_h > img_w:
